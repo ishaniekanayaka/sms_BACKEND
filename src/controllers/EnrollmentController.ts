@@ -52,3 +52,46 @@ export const enrollStudent = async (
         next(err);
     }
 };
+
+export const cancelEnrollment = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        const studentId = (req as any).user.userId;
+        const enrollmentId = req.params.id;
+
+        // Find the enrollment
+        const enrollment = await EnrollmentModel.findOne({
+            _id: enrollmentId,
+            student: studentId,
+        });
+
+        if (!enrollment) {
+            throw new ApiErrors(404, "Enrollment not found");
+        }
+
+        if (enrollment.status === "cancelled") {
+            throw new ApiErrors(400, "Enrollment is already cancelled");
+        }
+
+        // Update enrollment status
+        enrollment.status = "cancelled";
+        await enrollment.save();
+
+        // Reduce course's currentEnrollments
+        const course = await CourseModel.findById(enrollment.course);
+        if (course && (course.currentEnrollments ?? 0) > 0) {
+            course.currentEnrollments = (course.currentEnrollments ?? 1) - 1;
+            await course.save();
+        }
+
+        res.status(200).json({
+            message: "Enrollment cancelled successfully",
+            enrollment,
+        });
+    } catch (err) {
+        next(err);
+    }
+};
