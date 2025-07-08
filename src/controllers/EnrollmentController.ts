@@ -95,3 +95,26 @@ export const cancelEnrollment = async (
         next(err);
     }
 };
+
+export const getAllEnrolled = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const enrolled = await EnrollmentModel.find({ status: 'enrolled' })
+            .populate('student')
+            .populate('course');
+        res.status(200).json(enrolled);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getAllCompleted = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const completed = await EnrollmentModel.find({ status: 'completed' })
+            .populate('student')
+            .populate('course');
+        res.status(200).json(completed);
+    } catch (error) {
+        next(error);
+    }
+};
+
