@@ -75,3 +75,54 @@ export const signUp = async (
         next(error);
     }
 };
+
+
+export const login = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    try {
+        const {email,password} = req.body
+        const user = await UserModel.findOne({email})
+        if (!user) {
+            throw new ApiErrors(404, "User not found")
+        }
+
+        const isValidPassword = await bcrypt.compare(password, user.password)
+        if (!isValidPassword) {
+            throw new ApiErrors(401, "Invalid Credentials")
+        }
+        const accessToken = createAccessToken(user._id.toString())
+        const refreshToken = createRefreshToken(user._id.toString())
+
+        const isProd = process.env.NODE_ENV === "production"
+
+        res.cookie("refreshToken", refreshToken, {
+            httpOnly: true,
+            secure: isProd,
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+            path: "/api/auth/refresh-token"
+        })
+
+        const userWithoutPassword = {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            accessToken
+        }
+
+        res.status(200).json(userWithoutPassword)
+    } catch (err) {
+        next(err)
+    }
+}
+
+export const getAllUsers = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        const users = await UserModel.find();
+        res.status(200).json(users);
+    }catch (error:any){
+        next(error)
+    }
+}
