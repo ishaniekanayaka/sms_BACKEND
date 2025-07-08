@@ -133,7 +133,8 @@ export const getAllUsers = async (
     next: NextFunction
 ) => {
     try {
-        const users = await UserModel.find();
+        const users = await UserModel.find({ isActive: true });
+        //const users = await UserModel.find();
         res.status(200).json(users);
     }catch (error:any){
         next(error)
@@ -219,6 +220,29 @@ export const getLoggedInUser = async (
             message: "User details fetched successfully",
             user
         });
+    } catch (err) {
+        next(err);
+    }
+};
+
+export const deleteUser = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        const userId = req.params.id;
+
+        const user = await UserModel.findById(userId);
+        if (!user) {
+            throw new ApiErrors(404, "User not found");
+        }
+
+        // Soft delete: set isActive to false
+        user.isActive = false;
+        await user.save();
+
+        res.status(200).json({ message: "User deactivated successfully" });
     } catch (err) {
         next(err);
     }

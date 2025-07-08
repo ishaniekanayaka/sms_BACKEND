@@ -10,6 +10,11 @@ export type User = {
     dateOfBirth?: Date;
     profileImage?: string;
     isActive?: boolean;
+    /*isActive: {
+        type: Boolean,
+        default: true,
+    }*/
+
     createdAt?: Date;
 };
 
