@@ -2,13 +2,13 @@ import express, { Request, Response, NextFunction } from "express";
 import bcrypt from "bcrypt";
 import { ApiErrors } from "../errors/ApiErrors";
 import {UserModel} from "../models/User";
-import jwt from "jsonwebtoken";
+import jwt, {TokenExpiredError} from "jsonwebtoken";
 
 const createAccessToken = (user: any) => {
     return jwt.sign(
         { userId: user._id },
         process.env.ACCESS_TOKEN_SECRET!,
-        {expiresIn: "15m",}
+        {expiresIn: "15s",}
     );
 }
 
@@ -124,5 +124,67 @@ export const getAllUsers = async (
         res.status(200).json(users);
     }catch (error:any){
         next(error)
+    }
+}
+
+
+export const refreshToken = async (
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+) => {
+    try{
+        const token = req.cookies?.refreshToken;
+        if (!token) {
+            throw new ApiErrors(401, "Refresh token not found")
+        }
+        jwt.verify(
+            token,
+            process.env.REFRESH_TOKEN_SECRET!,
+            async (err:Error | null,decoded:string | jwt.JwtPayload | undefined) => {
+                if (err) {
+                    if (err instanceof TokenExpiredError){
+                        throw new ApiErrors(401, "Refresh token expired")
+                    } else if (err instanceof jwt.JsonWebTokenError){
+                        throw new ApiErrors(401, "Invalid refresh token")
+                    }else{
+                        throw new ApiErrors(401, "Error verifying refresh token")
+                    }
+                }
+                if (!decoded || typeof decoded === "string") {
+                    throw new ApiErrors(500, "Refresh token Payload error")
+                }
+                const userId = decoded.userId as string
+                const user = await UserModel.findById(userId)
+
+                if (!user) {
+                    throw new ApiErrors(404, "User not found")
+                }
+
+                const newAccessToken = createAccessToken(user._id.toString())
+                res.status(200).json({accessToken: newAccessToken})
+            }
+        )
+    }catch (err) {
+        next(err)
+    }
+}
+
+export const logout = async (
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+) => {
+    const isProd = process.env.NODE_ENV === "production"
+    try{
+        res.clearCookie("refreshToken",{
+            httpOnly: true,
+            secure: isProd,
+            path: "/api/auth/refresh-token"
+        });
+
+        res.status(200).json({message: "Logout successful :-)"})
+    }catch (err) {
+        next(err)
     }
 }
