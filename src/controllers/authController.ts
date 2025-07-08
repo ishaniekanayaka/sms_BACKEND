@@ -4,6 +4,7 @@ import { ApiErrors } from "../errors/ApiErrors";
 import {UserModel} from "../models/User";
 import jwt, {TokenExpiredError} from "jsonwebtoken";
 
+/*
 const createAccessToken = (user: any) => {
     return jwt.sign(
         { userId: user._id },
@@ -11,6 +12,15 @@ const createAccessToken = (user: any) => {
         {expiresIn: "15s",}
     );
 }
+*/
+
+const createAccessToken = (user: any) => {
+    return jwt.sign(
+        { userId: user._id, role: user.role }, // include role
+        process.env.ACCESS_TOKEN_SECRET!,
+        { expiresIn: "15m" } // change 15s to 15m for realistic use
+    );
+};
 
 
 const createRefreshToken = (user: any) => {
@@ -89,7 +99,9 @@ export const login = async (req: express.Request, res: express.Response, next: e
         if (!isValidPassword) {
             throw new ApiErrors(401, "Invalid Credentials")
         }
-        const accessToken = createAccessToken(user._id.toString())
+        //const accessToken = createAccessToken(user._id.toString())
+        const accessToken = createAccessToken(user);
+
         const refreshToken = createRefreshToken(user._id.toString())
 
         const isProd = process.env.NODE_ENV === "production"
@@ -105,6 +117,7 @@ export const login = async (req: express.Request, res: express.Response, next: e
             _id: user._id,
             name: user.name,
             email: user.email,
+            role: user.role,
             accessToken
         }
 
@@ -188,3 +201,25 @@ export const logout = async (
         next(err)
     }
 }
+
+export const getLoggedInUser = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        const userId = (req as any).user.userId;
+
+        const user = await UserModel.findById(userId).select("-password");
+        if (!user) {
+            throw new ApiErrors(404, "User not found");
+        }
+
+        res.status(200).json({
+            message: "User details fetched successfully",
+            user
+        });
+    } catch (err) {
+        next(err);
+    }
+};
