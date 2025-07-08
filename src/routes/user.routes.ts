@@ -1,13 +1,12 @@
-// src/routes/user.routes.ts
-
 import { Router } from "express";
 
 import { upload } from "../middlewares/upload";
-import {signUp} from "../controllers/userController";
+import {signUp} from "../controllers/authController";
+
 
 const router = Router();
 
-// Create user with profile image upload (multipart/form-data)
+
 router.post("/", upload.single("profileImage"), signUp);
 
 
